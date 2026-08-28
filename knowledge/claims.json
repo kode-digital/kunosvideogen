@@ -1,0 +1,41 @@
+{
+  "note": "Every claim SPEC.md flagged as risky, checked against source (kode-digital/bos-mirror) on 2026-08-28. All are status needs_review per SPEC.md instruction — code review alone cannot authorize a marketing claim, but it can tell us whether the underlying feature exists at all. Do not write narration against any claim here until it moves to status verified by the product owner.",
+  "claims": [
+    {
+      "claim": "100% accurate attendance reports",
+      "status": "needs_review",
+      "severity": "high — likely false as stated",
+      "evidence": "Modules/Attendance and app/Http/Controllers/ClockInClockOutController.php contain no geofencing, GPS/lat-long capture, or photo/selfie verification of any kind — grepped attendance migrations and controllers, found none. Attendance appears to be a plain timestamp clock-in/out with no location or identity verification at all.",
+      "recommendation": "This claim is more overstated than SPEC.md's original worry (which assumed geofencing existed but could be spoofed). As written it should not be used. Rewrite around what's true — e.g. 'clock-in/out tracked automatically' — unless the product owner confirms a verification mechanism exists that this review missed."
+    },
+    {
+      "claim": "cut processing time by over 80%",
+      "status": "needs_review",
+      "severity": "medium — no documented basis found, but a real candidate feature exists",
+      "evidence": "No benchmark, timing log, or documented baseline found in code. The closest real feature is the BOQ document-scan OCR flow (Modules/CRM/App/Services/SiteVisitDocumentOcrService.php, Google Vision-based) which does plausibly speed up manual line-item entry from site documents.",
+      "recommendation": "Do not use the 80% figure without the product owner producing a measured before/after comparison. If kept, it should be scoped explicitly to 'BOQ data entry from scanned documents,' not processing in general."
+    },
+    {
+      "claim": "literally three seconds for the Kunos AI quote",
+      "status": "needs_review — escalated, feature itself does not exist as described",
+      "severity": "critical — this is SPEC.md's entire V1 target shot",
+      "evidence": "The Kunos AI chat assistant (App\\Http\\Controllers\\BosAiAssistantController, Anthropic-backed) supports exactly three actions — prepare_leave_application, prepare_domestic_travel_claim, search_leave_on_behalf_staff — all HR. It has no client lookup, stock check, or quote-generation capability. CRM quotations (Modules/CRM/App/Http/Controllers/QuotationController.php) exist and work, but as a conventional multi-step manual form with zero AI or chat involvement.",
+      "recommendation": "Cannot be filmed as written — there is nothing to record. User is escalating to the product owner to confirm whether this is a near-term roadmap item, a different environment/branch, or the spec was written from outdated information. V1 capture target is paused pending that answer (see SPEC.md build-order note)."
+    },
+    {
+      "claim": "fastest delivery route powered by Google Maps live traffic",
+      "status": "needs_review",
+      "severity": "critical — feature does not appear to exist at all",
+      "evidence": "Transport module's only controller (Modules/Transport/app/Http/Controllers/KenderaanController.php) implements an internal vehicle-request/approval workflow (staff requests a vehicle, admin/supervisor approves, driver assigned) — not delivery-route planning. Repo-wide search for Google Maps Directions/Distance Matrix API, traffic-model params, or any routing-optimization logic returned nothing.",
+      "recommendation": "This claim has no code basis whatsoever, not even a partial/unoptimized version. Do not use until the product owner either points to where this actually lives or confirms it needs to be built first."
+    },
+    {
+      "claim": "named accounting integrations (SQL Account, AutoCount) and their availability status",
+      "status": "needs_review",
+      "severity": "high — no matching integration found",
+      "evidence": "Repo-wide case-insensitive search for 'SQL Account', 'AutoCount', and common alternatives (Xero, QuickBooks) returned zero matches in code, config, or dependencies. The only related feature is Modules/Finance/App/Http/Controllers/CashbookIntegrationController.php, which is a generic CSV/bank-statement import → classify → approve workflow, not a named accounting-software sync.",
+      "recommendation": "Do not name SQL Account or AutoCount specifically unless the product owner confirms an integration exists outside this repo (e.g. a separate service) or is genuinely planned. If the real feature is the generic cashbook import, describe it as that instead."
+    }
+  ],
+  "summary_for_product_owner": "Of the five flagged claims, two (attendance accuracy, delivery routing) point to features with no code presence at all. One (AI quote) is the V1 target and has no code presence for the specific quoting behavior described, though a related but different AI feature (HR leave assistant) and a related but different fast-processing feature (BOQ OCR scan) do exist and work today. Two (processing time %, named accounting integrations) need either a benchmark or a correction to what's actually integrated."
+}

@@ -1,0 +1,76 @@
+{
+  "product": "Kunos",
+  "vendor": "Kode Digital Sdn Bhd",
+  "positioning": "Operations platform for hardware stores, retail outlets and warehouses in Malaysia. Modules: Inventory, Logistics/Transport, CRM & Sales, HR, Finance/OCR, and a built-in AI assistant (\"Kunos AI\").",
+  "audience": "Business owners and operations managers, not developers. Tone: warm, practical, peer-to-peer.",
+  "market": {
+    "country": "Malaysia",
+    "currency": "RM",
+    "entity_type": "Sdn Bhd"
+  },
+  "source_verified_at": "2026-08-28",
+  "source_repo": "kode-digital/bos-mirror (mirror of bitbucket.org/kbxian_kode/bos)",
+  "tech_stack": {
+    "backend": "Laravel 12 (PHP 8.2), nwidart/laravel-modules for per-module structure",
+    "frontend": "Server-rendered Blade templates, jQuery, Bootstrap 5, Vite. No SPA framework (no Vue/React/Inertia) found in package.json.",
+    "implication_for_capture": "fixtures.ts cannot use clean page.route() JSON interception as SPEC.md describes for a JSON-API SPA. Needs the DOM/response-patching fallback SPEC.md anticipated for the server-rendered case."
+  },
+  "codebase_note": {
+    "observation": "The underlying codebase (config/bos.php calls it 'Kunos System Identity', white-label config) shows clear signs of originating as an education/institution management system — modules named Student, AcademicSettings, Facilities (room booking), Malay-language route/controller names like 'Pensyarah' (lecturer), 'Kursus' (course), 'Kenderaan' (vehicle request). It has been extended with business-ops modules (Inventory, CRM, Finance, Transport) and rebranded as 'Kunos' for the hardware/retail/warehouse market.",
+    "why_it_matters": "Not itself a problem — many SaaS products are built on a shared core — but it means some modules visible in the running demo (Academic, Room Booking, Student) are leftover from that origin and are NOT part of the Kunos product story. Do not film or reference them. Stick to modules that map to the actual positioning: Dashboard, Inventory, CRM & Sales, HR, Finance, Transport, Announcement, Kunos AI."
+  },
+  "modules_in_source": [
+    "AcademicSettings (leftover, not part of Kunos positioning — do not use)",
+    "AccessControl (roles/permissions, internal)",
+    "Analisa (dashboard/reporting)",
+    "Announcement",
+    "Approval (generic approval workflow engine used by Transport/Finance)",
+    "Attendance",
+    "Auth",
+    "Borang (Malay: 'form' — legacy claims/petty-cash forms, leftover)",
+    "CRM (companies, contacts, deals, quotations, invoices, BOQ, site visits)",
+    "Facilities (room booking, leftover — not part of Kunos positioning)",
+    "Finance (cashbook, cash flow analytics, supplier expenses, budget)",
+    "FormBuilder",
+    "HumanResource (leave, staff, KPI)",
+    "Inventory (items, categories, suppliers, barcodes, BOM/assemblies, stock movements)",
+    "KPI",
+    "Merchant",
+    "Package",
+    "Projects",
+    "Provisioner",
+    "Student (leftover, not part of Kunos positioning — do not use)",
+    "Support (ticketing)",
+    "Transport (vehicle request/approval workflow — see ai_and_automation_features note on Logistics claim)"
+  ],
+  "ai_and_automation_features_verified": [
+    {
+      "feature": "Kunos AI Assistant (chat bubble)",
+      "status": "real, working, but scoped only to HR",
+      "detail": "Backed by an Anthropic provider (app/Services/AI/Providers/AnthropicConversationalProvider.php). Handles exactly three actions: prepare_leave_application, prepare_domestic_travel_claim, search_leave_on_behalf_staff. Also does voice transcription (Google/Alibaba speech APIs) and attachment handling (medical certs, travel receipts) for those flows.",
+      "caveat": "Feature flag 'bos_ai_assistant' is seeded is_enabled=false by default — confirm it's turned on in whichever tenant gets recorded.",
+      "does_not_do": "No CRM/sales/quotation/inventory actions of any kind. Cannot look up a client, check stock, or generate a quote."
+    },
+    {
+      "feature": "BOQ document scan (site visit → Bill of Quantities)",
+      "status": "real, working",
+      "detail": "Modules/CRM/App/Services/SiteVisitDocumentOcrService.php uses Google Cloud Vision (not Claude/Anthropic) to OCR-extract line items from an uploaded site-visit document/photo into a reviewable table, which can be imported into a BOQ and then converted into a quotation.",
+      "likely_maps_to": "the 'OCR upload screen' mentioned in the original screenshot list, and possibly the basis (once measured) for a 'cut processing time' claim — but it is document-to-BOQ speed, not an AI chat quoting a customer in seconds."
+    },
+    {
+      "feature": "CRM Quotations",
+      "status": "real, working, entirely manual",
+      "detail": "Modules/CRM/App/Http/Controllers/QuotationController.php is a conventional create/edit/item-management form flow (index, create, store, items, transition, revise, pdf). No AI or chat involvement anywhere in the controller or its services."
+    },
+    {
+      "feature": "CRM note-audio transcription + AI summary",
+      "status": "real, working",
+      "detail": "Voice notes on companies/contacts/deals can be transcribed and AI-summarized (CrmNoteAudioService / CrmNoteSummaryService)."
+    },
+    {
+      "feature": "Document Centre OCR indexing / auto-tagging",
+      "status": "real, working (enabled by default)",
+      "detail": "General document library with OCR-based indexing and AI auto-tagging, seeded is_enabled=true."
+    }
+  ]
+}

@@ -12,6 +12,18 @@ If you think part of this spec is wrong, say so explicitly and explain why. Do n
 
 ---
 
+## Status — build notes (2026-08-28)
+
+Source access to the actual Kunos backend (`kode-digital/bos-mirror`, a mirror of the real repo) was obtained and reviewed. Two things this spec assumed turned out not to match reality:
+
+1. **§9 blocking question, answered:** Kunos is a Laravel 12 app with server-rendered Blade views, jQuery + Bootstrap 5, no SPA framework. There is no `routes/api.php`. This means `capture/lib/fixtures.ts` (§6.3) cannot use clean `page.route()` JSON interception as the primary path — it needs the DOM/response-patching fallback this section already anticipated for the server-rendered case. Not yet implemented; needs designing before `capture/lib/fixtures.ts` is written.
+
+2. **§10 V1 target (`kunos_ai_quote`) does not exist as described.** The Kunos AI chat assistant is real and Anthropic-backed, but its only capabilities are HR leave applications, travel claims, and staff leave lookups — no client lookup, stock check, or quote generation. CRM quotations exist and work, but as a conventional manual form with no AI involvement. Full evidence in `knowledge/claims.json` and `knowledge/product.json`. **This is currently escalated to the product owner; V1 capture work is paused pending their answer on which real flow to target instead.** Do not resume building `capture/specs/kunos_ai_quote.spec.ts` until that's resolved — see CLAUDE.md's working-style note, which will be updated once a replacement target is confirmed.
+
+Also found while reviewing: two other §8 claims ("100% accurate attendance reports", "fastest delivery route powered by Google Maps live traffic") point to features with no code presence at all, not just overstated ones. Details in `knowledge/claims.json`.
+
+---
+
 ## 1. What this is
 
 An automated pipeline that produces marketing and demo videos for a SaaS product called Kunos, combining **real recorded UI footage** with AI-generated cinematic B-roll and AI narration.

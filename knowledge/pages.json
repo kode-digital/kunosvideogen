@@ -1,0 +1,101 @@
+{
+  "note": "Routes and controllers verified against source (kode-digital/bos-mirror) on 2026-08-28. Selectors are NOT yet filled in — that requires driving the live demo with Playwright (SPEC.md capture spec section) and is deferred until a capture spec is actually being written. This file establishes which URL maps to which real screen so fixtures.ts / capture specs target the right routes.",
+  "base_url": "https://intranetdemo.kodedigital.expert",
+  "rendering": "server-rendered Blade (Laravel), not a JSON-API SPA — see knowledge/product.json tech_stack",
+  "pages": [
+    {
+      "id": "dashboard_overview",
+      "route_name": "dashboard",
+      "path": "/dashboard",
+      "controller": "App\\Http\\Controllers\\DashboardController@index",
+      "auth_required": true,
+      "matches_screenshot": "Dashboard.png",
+      "notable_widgets": ["attendance status / clock-in", "announcements", "calendar", "annual leave balance", "performance score", "salary & claims"]
+    },
+    {
+      "id": "inventory_dashboard",
+      "route_name": "inventory.dashboard",
+      "path": "/inventory",
+      "controller": "Modules\\Inventory\\App\\Http\\Controllers\\InventoryController@dashboard",
+      "auth_required": true,
+      "role_required": "Super Admin|Admin|Storekeeper",
+      "matches_screenshot": "Inventory Dashboard.png",
+      "related_routes": {
+        "items_index": "/inventory/items",
+        "items_create": "/inventory/items/create",
+        "categories_index": "/inventory/categories",
+        "reports": "/inventory/reports",
+        "barcode_lookup": "/inventory/barcodes/lookup",
+        "supplier_documents": "Modules\\Inventory\\App\\Http\\Controllers\\SupplierDocumentController"
+      }
+    },
+    {
+      "id": "crm_dashboard",
+      "route_name": "crm.dashboard",
+      "path": "/crm",
+      "controller": "Modules\\CRM\\App\\Http\\Controllers\\DashboardController",
+      "auth_required": true,
+      "matches_screenshot": "CRM Dashboard.png",
+      "related_routes": {
+        "companies": "/crm/companies",
+        "contacts": "/crm/contacts",
+        "quotations_index": "/crm/quotations",
+        "quotations_create": "/crm/quotations/create",
+        "quotation_pdf": "/crm/quotations/{quotation}/pdf",
+        "boq_scan_upload": "Modules\\CRM\\App\\Http\\Controllers\\BoqScanController@create",
+        "boq_scan_review": "Modules\\CRM\\App\\Http\\Controllers\\BoqScanController@review",
+        "invoices": "InvoiceController"
+      }
+    },
+    {
+      "id": "hr_leave_application",
+      "route_name": "leave (module-scoped)",
+      "path": "/leave (exact HumanResource module prefix to confirm live)",
+      "controller": "Modules\\HumanResource\\App\\Http\\Controllers\\LeaveFormController",
+      "auth_required": true,
+      "matches_screenshot": "HR - Leave Application.png",
+      "related_routes": {
+        "leave_settings": "/leave-settings",
+        "bulk_leave_form": "/bulk-leave-form",
+        "jenis_cuti (leave types)": "/leave/jenis-cuti"
+      }
+    },
+    {
+      "id": "finance_budget_department_setup",
+      "route_name": "kewangan.* (module prefix)",
+      "path": "/kewangan/... (exact path to confirm live)",
+      "controller": "Modules\\Finance\\App\\Http\\Controllers\\KewanganController and FinanceBudgetDepartmentSetupController",
+      "auth_required": true,
+      "role_required": "Finance|Super Admin",
+      "matches_screenshot": "Finance - Budget Department Setup.png",
+      "related_routes": {
+        "cashbook_integration": "/finance/integration/cashbook (redirects to finance.integration.cashbook.index)",
+        "cash_flow_analytics": "CashFlowAnalyticsController",
+        "supplier_expenses": "SupplierExpenseController"
+      }
+    },
+    {
+      "id": "kunos_ai_assistant",
+      "route_prefix": "(ai assistant group, exact prefix to confirm live)",
+      "controller": "App\\Http\\Controllers\\BosAiAssistantController",
+      "auth_required": true,
+      "matches_screenshot": "Kunos AI chat bubble (bottom-right on all screenshots)",
+      "actions_available": ["prepare_leave_application", "prepare_domestic_travel_claim", "search_leave_on_behalf_staff"],
+      "feature_flag": "bos_ai_assistant — seeded disabled by default, verify enabled on recording tenant",
+      "caution": "Do NOT capture this as a CRM/quoting feature — it only does HR leave/claims. See knowledge/product.json."
+    },
+    {
+      "id": "transport_vehicle_request",
+      "route_name": "kenderaan (module, exact prefix to confirm live)",
+      "controller": "Modules\\Transport\\app\\Http\\Controllers\\KenderaanController",
+      "auth_required": true,
+      "caution": "This is Kunos's 'Logistics' module in the running UI's sidebar label, but the code is an internal vehicle-request/approval workflow (staff requests a vehicle, admin approves, driver assigned) — not delivery-route planning. No Google Maps / Directions API / traffic integration found anywhere in the codebase. See knowledge/claims.json."
+    }
+  ],
+  "not_part_of_kunos_positioning_do_not_film": [
+    "Academic / AcademicSettings module",
+    "Student module",
+    "Room Booking / Facilities module",
+    "Borang (legacy petty-cash/claims forms)"
+  ]
+}
