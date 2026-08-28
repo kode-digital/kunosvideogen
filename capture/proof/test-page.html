@@ -1,0 +1,29 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8" />
+<title>Recorder proof</title>
+<style>
+  html, body { margin: 0; padding: 0; width: 1920px; height: 1080px; background: #0b1220; overflow: hidden; }
+  body { font-family: -apple-system, Helvetica, Arial, sans-serif; color: #e8ecf5; }
+  #clock { position: absolute; top: 40px; left: 40px; font-size: 64px; font-variant-numeric: tabular-nums; }
+  #target { position: absolute; width: 220px; height: 120px; border-radius: 12px; background: #4f7cff; display: flex; align-items: center; justify-content: center; font-size: 28px; }
+  #trail { position: absolute; top: 0; left: 0; width: 1920px; height: 1080px; }
+</style>
+</head>
+<body>
+  <div id="clock">0.0s</div>
+  <div id="target" style="top: 480px; left: 850px;">click target</div>
+  <svg id="trail"></svg>
+  <script>
+    const start = performance.now();
+    const clock = document.getElementById('clock');
+    function tick() {
+      const t = (performance.now() - start) / 1000;
+      clock.textContent = t.toFixed(1) + 's';
+      requestAnimationFrame(tick);
+    }
+    tick();
+  </script>
+</body>
+</html>

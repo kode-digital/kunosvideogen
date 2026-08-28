@@ -1,0 +1,21 @@
+{
+  "name": "kunos-video",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Automated video production pipeline for Kunos (capture + generate).",
+  "scripts": {
+    "capture": "tsx capture/run.ts",
+    "generate": "tsx generate/run.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "dotenv": "^16.4.5"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.2",
+    "playwright": "^1.49.1",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.2"
+  }
+}
