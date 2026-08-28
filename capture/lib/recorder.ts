@@ -70,7 +70,7 @@ export async function startRecording(opts: RecorderOptions): Promise<RecordingHa
   const xvfb = spawn(
     "Xvfb",
     [display, "-screen", "0", `${width}x${height}x24`, "-nolisten", "tcp"],
-    { stdio: ["ignore", "ignore", "pipe"] },
+    { stdio: ["pipe", "pipe", "pipe"] },
   );
   await waitForXDisplay(xvfb, display);
 
@@ -87,7 +87,13 @@ export async function startRecording(opts: RecorderOptions): Promise<RecordingHa
     "-pix_fmt", "yuv420p",
     opts.outPath,
   ];
-  const ffmpeg = spawn("ffmpeg", ffmpegArgs, { stdio: ["pipe", "ignore", "pipe"] });
+  const ffmpeg = spawn("ffmpeg", ffmpegArgs, { stdio: ["pipe", "pipe", "pipe"] });
+  // stdout is piped (for accurate typing) but intentionally never read --
+  // ffmpeg writes the actual video to opts.outPath, not stdout, so this
+  // pipe stays empty and won't back up.
+  ffmpeg.stdout.resume();
+  xvfb.stdout.resume();
+  xvfb.stdin.end();
 
   // ffmpeg needs a beat to open the X11 grab source before the caller
   // starts driving the browser, otherwise the first second or two of
