@@ -97,18 +97,31 @@ async function recordSection(
   const tracker = new MarkerTracker(recording.startedAt);
   let browser: Browser | undefined;
 
+  const SECTION_ATTEMPTS = 2; // this tenant is a known-flaky staging environment (SPEC.md) -- one retry rides out a slow/reloaded page
+  let lastError: unknown;
+
   try {
     browser = await launchCaptureBrowser({ display: recording.display, size: SIZE });
-    const page = await browser.newPage({ viewport: { width: SIZE[0], height: SIZE[1] } });
-    const { assertions } = await run(page, tracker);
-    const passed = assertions.every((a) => a.passed);
-    if (!passed) {
-      console.error(`[${id}] capture-time assertions failed: ${JSON.stringify(assertions)}`);
+
+    for (let attempt = 1; attempt <= SECTION_ATTEMPTS; attempt++) {
+      const page = await browser.newPage({ viewport: { width: SIZE[0], height: SIZE[1] } });
+      try {
+        const { assertions } = await run(page, tracker);
+        const passed = assertions.every((a) => a.passed);
+        if (!passed) {
+          console.error(`[${id}] capture-time assertions failed: ${JSON.stringify(assertions)}`);
+        }
+        return { id, scriptSection, outPath, duration: (Date.now() - recording.startedAt) / 1000, passed, tracker, assertions };
+      } catch (err) {
+        lastError = err;
+        const message = err instanceof Error ? err.message : String(err);
+        console.error(`[${id}] attempt ${attempt}/${SECTION_ATTEMPTS} failed: ${message}`);
+      } finally {
+        await page.close().catch(() => {});
+      }
     }
-    return { id, scriptSection, outPath, duration: (Date.now() - recording.startedAt) / 1000, passed, tracker, assertions };
-  } catch (err) {
-    const message = err instanceof Error ? err.message : String(err);
-    console.error(`[${id}] failed: ${message}`);
+
+    const message = lastError instanceof Error ? lastError.message : String(lastError);
     return {
       id,
       scriptSection,
