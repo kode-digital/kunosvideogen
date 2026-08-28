@@ -42,8 +42,18 @@ export const PII_ALLOWLIST: readonly string[] = [
 
 // Matches a run of capitalized words immediately followed by a common
 // legal-entity suffix, e.g. "Bright Star Trading Sdn Bhd", "Acme Pte Ltd".
+// Word separators are horizontal whitespace only ([ \t], never \n) --
+// document.body.innerText inserts real newlines at block-element/heading
+// boundaries, and an earlier version of this pattern used \s (which
+// matches newlines too), so it happily glued unrelated headings and
+// labels together into a single fake "entity name" (confirmed live
+// 2026-08-28: "BOQ-2026-0018\n\nSCANNING INTO\n\nBOQ-2026-0018\n\nAurora
+// Hardware Sdn Bhd" matched as one violation). A real entity name is
+// always one contiguous inline run of text, never spread across
+// separate blocks, so restricting to same-line whitespace is strictly
+// more correct, not just a narrower net.
 const ENTITY_NAME_PATTERN =
-  /\b([A-Z][A-Za-z0-9&'.-]*(?:\s+[A-Z][A-Za-z0-9&'.-]*){0,5}\s+(?:Sdn\.?\s?Bhd\.?|Bhd\.?|Pte\.?\s?Ltd\.?|Ltd\.?|Inc\.?|LLC))\b/g;
+  /\b([A-Z][A-Za-z0-9&'.-]*(?:[ \t]+[A-Z][A-Za-z0-9&'.-]*){0,5}[ \t]+(?:Sdn\.?[ \t]?Bhd\.?|Bhd\.?|Pte\.?[ \t]?Ltd\.?|Ltd\.?|Inc\.?|LLC))\b/g;
 
 export interface GuardResult {
   passed: boolean;
@@ -64,8 +74,19 @@ export async function checkPiiAllowlist(page: Page, allowlist: readonly string[]
   const found = [...visibleText.matchAll(ENTITY_NAME_PATTERN)].map((m) => m[1].trim());
   const uniqueFound = [...new Set(found)];
 
-  const normalizedAllowlist = new Set(allowlist.map((n) => n.toLowerCase().trim()));
-  const violations = uniqueFound.filter((name) => !normalizedAllowlist.has(name.toLowerCase().trim()));
+  const normalizedAllowlist = allowlist.map((n) => n.toLowerCase().trim());
+  const violations = uniqueFound.filter((name) => {
+    const normalized = name.toLowerCase().trim();
+    // Exact match, or the allowlisted name as a trailing, word-boundary-safe
+    // suffix -- the pattern above greedily includes up to 5 preceding
+    // capitalized words, so a real allowlisted name can pick up an
+    // unrelated leading word from surrounding text (e.g. the copyright
+    // footer's "© Copyright Kode Digital Sdn Bhd" matches as "Copyright
+    // Kode Digital Sdn Bhd"). Requiring a space (not just any character)
+    // before the suffix avoids accidentally allowing an unrelated name
+    // that merely ends in the same letters.
+    return !normalizedAllowlist.some((allowed) => normalized === allowed || normalized.endsWith(` ${allowed}`));
+  });
 
   return { passed: violations.length === 0, violations, found: uniqueFound };
 }
