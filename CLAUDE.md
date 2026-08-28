@@ -26,7 +26,7 @@ OpenAI, Whisper, Remotion, n8n/Make/Zapier, HeyGen, Synthesia, Descript, Runway,
 
 ## Working style
 
-Build one vertical slice end to end before widening. Current target is the `kunos_ai_quote` shot (`SPEC.md` section 10).
+Build one vertical slice end to end before widening. Current target is the `boq_scan_to_quote` shot (`SPEC.md` section 10) — the original `kunos_ai_quote` shot was skipped because that flow does not exist in the product; see `SPEC.md` Status section and `knowledge/claims.json`.
 
 Capture-time assertions are the primary QA. Assert in Playwright before the frame is recorded rather than analysing rendered video.
 

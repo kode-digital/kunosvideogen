@@ -18,7 +18,7 @@ Source access to the actual Kunos backend (`kode-digital/bos-mirror`, a mirror o
 
 1. **§9 blocking question, answered:** Kunos is a Laravel 12 app with server-rendered Blade views, jQuery + Bootstrap 5, no SPA framework. There is no `routes/api.php`. This means `capture/lib/fixtures.ts` (§6.3) cannot use clean `page.route()` JSON interception as the primary path — it needs the DOM/response-patching fallback this section already anticipated for the server-rendered case. Not yet implemented; needs designing before `capture/lib/fixtures.ts` is written.
 
-2. **§10 V1 target (`kunos_ai_quote`) does not exist as described.** The Kunos AI chat assistant is real and Anthropic-backed, but its only capabilities are HR leave applications, travel claims, and staff leave lookups — no client lookup, stock check, or quote generation. CRM quotations exist and work, but as a conventional manual form with no AI involvement. Full evidence in `knowledge/claims.json` and `knowledge/product.json`. **This is currently escalated to the product owner; V1 capture work is paused pending their answer on which real flow to target instead.** Do not resume building `capture/specs/kunos_ai_quote.spec.ts` until that's resolved — see CLAUDE.md's working-style note, which will be updated once a replacement target is confirmed.
+2. **§10 V1 target (`kunos_ai_quote`) does not exist as described — decided, not just flagged.** The Kunos AI chat assistant is real and Anthropic-backed, but its only capabilities are HR leave applications, travel claims, and staff leave lookups — no client lookup, stock check, or quote generation. CRM quotations exist and work, but as a conventional manual form with no AI involvement. Full evidence in `knowledge/claims.json` and `knowledge/product.json`. **Decision (2026-08-28): skip that scene rather than wait on product-owner sign-off.** V1's target shot is now `boq_scan_to_quote` — the real, working flow where a site-visit document is uploaded, Google Vision OCR extracts line items, they're reviewed, and the result becomes a CRM quotation (`Modules/CRM/App/Http/Controllers/BoqScanController.php` → `QuotationController@fromBoq`). §6.6 and §10 below are updated for this shot. The AI-chat-quote idea can come back as a later, separate video if the feature ever gets built — it is not part of V1.
 
 Also found while reviewing: two other §8 claims ("100% accurate attendance reports", "fastest delivery route powered by Google Maps live traffic") point to features with no code presence at all, not just overstated ones. Details in `knowledge/claims.json`.
 
@@ -224,12 +224,14 @@ Each file records one shot. Structure: apply fixtures, log in, navigate, run the
 
 Assertions run at capture time, not on rendered frames. `expect(page.getByText('Aurora Hardware')).toBeVisible()` is deterministic and free. Vision analysis of a finished MP4 is neither.
 
-### 6.6 Kunos AI shot — special handling
+### 6.6 BOQ scan-to-quote shot — special handling
 
-The Kunos AI quotation flow works fully end-to-end today (client lookup, stock check, quote generation, confirmed by the product owner). Two complications:
+(Replaces the original `kunos_ai_quote` shot, which was skipped — see Status section above and `knowledge/claims.json`.)
 
-- **Non-deterministic output.** Assert on the outcome (a quote exists, the client is correct, quantity is 5) rather than exact wording. Implement best-of-3: run up to three times, keep the take where assertions pass and the response reads cleanest.
-- **Real latency.** Time the flow ten times and take the median before any narration is locked. Streaming token output films well, so do not hide it. If the real time is longer than the script implies, either show it sped up with a visible label or rewrite the line.
+The BOQ document-scan flow works fully end-to-end today: upload a site-visit document/photo (`Modules/CRM/App/Http/Controllers/BoqScanController@create`/`@store`), Google Vision OCR extracts line items, the reviewer confirms/edits them (`@review`, `@update`, `@import`), and the confirmed BOQ becomes a quotation (`QuotationController@fromBoq`). Two complications, carried over from the original section because they still apply to this shot:
+
+- **Non-deterministic OCR output.** Extracted line items can vary slightly run to run (misreads, ordering). Assert on the outcome (expected line-item count, expected item names/quantities present) rather than exact OCR text. Implement best-of-3: run up to three times, keep the take where assertions pass and the review screen reads cleanest.
+- **Real processing latency.** Time the OCR extraction step ten times and take the median before any narration is locked. If the real time is longer than the script implies, either show it sped up with a visible label or rewrite the line — do not claim a speed that wasn't measured (see the "cut processing time" claim in `knowledge/claims.json`, which still needs a real benchmark before it can be used in narration).
 
 ### 6.7 Timeline (`generate/timeline.ts`)
 
@@ -286,20 +288,20 @@ Product accuracy outranks cinematic quality. A polished video showing functional
 
 Do not build the whole system. Build one vertical slice end to end, prove it, then widen.
 
-**V1 slice — the `kunos_ai_quote` shot only:**
+**V1 slice — the `boq_scan_to_quote` shot only** (replaces the original `kunos_ai_quote` target — see Status section above):
 
 1. `knowledge/pages.json` and `fixtures/` for the screens involved
 2. `capture/lib/recorder.ts` — prove Xvfb + ffmpeg capture produces a clean 1080p30 MP4
 3. `capture/lib/cursor.ts` and `markers.ts`
 4. `capture/lib/guards.ts`
-5. `capture/specs/kunos_ai_quote.spec.ts` — produces MP4 + sidecar
+5. `capture/specs/boq_scan_to_quote.spec.ts` — produces MP4 + sidecar
 6. `generate/voice.ts` — two narration lines with timestamps
 7. `generate/timeline.ts` — merge into a cut list
 8. `generate/assemble.ts` — render 16:9 and 9:16
 9. One Higgsfield B-roll clip, added manually to the library
 10. `generate/plan.ts` and `qa.ts` last
 
-Orchestration for V1 is npm scripts run by hand: `npm run capture`, `npm run generate -- --brief briefs/ai-quote.md`. No queue, no database, no web dashboard. Add BullMQ and Redis only past roughly five videos a month.
+Orchestration for V1 is npm scripts run by hand: `npm run capture`, `npm run generate -- --brief briefs/boq-scan-quote.md`. No queue, no database, no web dashboard. Add BullMQ and Redis only past roughly five videos a month.
 
 ---
 

@@ -17,10 +17,10 @@
     },
     {
       "claim": "literally three seconds for the Kunos AI quote",
-      "status": "needs_review — escalated, feature itself does not exist as described",
-      "severity": "critical — this is SPEC.md's entire V1 target shot",
+      "status": "skipped — scene dropped from V1, not filming this claim",
+      "severity": "critical — this was SPEC.md's original V1 target shot",
       "evidence": "The Kunos AI chat assistant (App\\Http\\Controllers\\BosAiAssistantController, Anthropic-backed) supports exactly three actions — prepare_leave_application, prepare_domestic_travel_claim, search_leave_on_behalf_staff — all HR. It has no client lookup, stock check, or quote-generation capability. CRM quotations (Modules/CRM/App/Http/Controllers/QuotationController.php) exist and work, but as a conventional multi-step manual form with zero AI or chat involvement.",
-      "recommendation": "Cannot be filmed as written — there is nothing to record. User is escalating to the product owner to confirm whether this is a near-term roadmap item, a different environment/branch, or the spec was written from outdated information. V1 capture target is paused pending that answer (see SPEC.md build-order note)."
+      "recommendation": "Decision made 2026-08-28: skip this scene rather than wait on product-owner confirmation. V1 target shot changed to boq_scan_to_quote (real, working OCR-driven flow) — see SPEC.md Status section. This claim/shot can be revisited later as a separate video if the AI-chat-quote feature is ever built, but it is off the table for V1."
     },
     {
       "claim": "fastest delivery route powered by Google Maps live traffic",
