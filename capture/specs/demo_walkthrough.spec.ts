@@ -73,7 +73,7 @@ import { loginOn, url, findOrCreateReservedCompany, createReservedDeal, RESERVED
 
 const SIZE: [number, number] = [1920, 1080];
 const FPS = 30;
-const EXTRACTION_POLL_TIMEOUT_MS = 45_000;
+const EXTRACTION_POLL_TIMEOUT_MS = 90_000; // real OCR + queued-job latency, seen to vary well beyond 45s under capture's CPU load
 const EXTRACTION_POLL_INTERVAL_MS = 4_000;
 
 interface SectionResult {
@@ -219,9 +219,11 @@ async function section2_inventory(page: Page, tracker: MarkerTracker) {
   // though the same filled form submits fine headless.
   await forceEnableAndClick(page, 'button:text-is("Upload & Extract")');
   await failOnVisibleFormErrors(page, "supplier document upload");
+  console.log(`[inventory] after clicking Upload & Extract, url is ${page.url()}`);
 
   const extraction = await tracker.deadZone(() => waitForOwnUrlChange(page, EXTRACTION_POLL_TIMEOUT_MS, EXTRACTION_POLL_INTERVAL_MS));
   assertions.push({ type: "supplier_document_extracted", passed: extraction });
+  if (!extraction) console.log(`[inventory] extraction poll timed out, url still ${page.url()}`);
   if (extraction) {
     await tracker.record("supplier_document_review_visible");
     assertions.push({ type: "pii_allowlist", passed: await guardSafely(page) });
