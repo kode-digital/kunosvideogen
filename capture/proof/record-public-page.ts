@@ -15,12 +15,12 @@
 // This file is throwaway scaffolding, not part of the real capture
 // pipeline — real shots live under capture/specs/.
 
-import { chromium } from "playwright";
 import { createServer } from "node:http";
 import { readFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 import { startRecording } from "../lib/recorder.ts";
+import { launchCaptureBrowser } from "../lib/browser.ts";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const OUT_PATH = "out/proof/recorder-test.mp4";
@@ -55,12 +55,7 @@ async function main() {
   console.log(`Recording on display ${recording.display} -> ${OUT_PATH}`);
 
   try {
-    const browser = await chromium.launch({
-      headless: false,
-      executablePath: "/opt/pw-browsers/chromium",
-      args: [`--window-position=0,0`, `--window-size=${SIZE[0]},${SIZE[1]}`, "--no-sandbox"],
-      env: { ...process.env, DISPLAY: recording.display },
-    });
+    const browser = await launchCaptureBrowser({ display: recording.display, size: SIZE });
 
     try {
       const page = await browser.newPage({ viewport: { width: SIZE[0], height: SIZE[1] } });

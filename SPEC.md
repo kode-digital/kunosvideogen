@@ -22,6 +22,8 @@ Source access to the actual Kunos backend (`kode-digital/bos-mirror`, a mirror o
 
 Also found while reviewing: two other §8 claims ("100% accurate attendance reports", "fastest delivery route powered by Google Maps live traffic") point to features with no code presence at all, not just overstated ones. Details in `knowledge/claims.json`.
 
+3. **Network access, and a Chromium/TLS gotcha (resolved).** This sandbox's outbound network defaulted to a restrictive policy that blocked the real Kunos demo domain entirely (403). Fixed by switching the Claude Code environment's network access setting to full/unrestricted (done 2026-08-28). Separately, even with network access open, Chromium (not curl/Node) got a mid-TLS-handshake connection reset against `intranetdemo.kodedigital.expert` through this environment's egress gateway — confirmed via Chromium's own NetLog to happen before any certificate is evaluated (`net_error -101`/ECONNRESET on the ClientHello), i.e. not a CA-trust problem. Root cause not fully identified (consistent with Chromium's TLS 1.3 ClientHello — e.g. post-quantum key exchange — being mishandled by the gateway), but forcing `--ssl-version-max=tls1.2` on the Chromium launch args reliably fixes it, confirmed against the real login page. This is now baked into `capture/lib/browser.ts` (`launchCaptureBrowser()`) — always launch capture browsers through that helper, not a raw `chromium.launch()`, or this will resurface.
+
 ---
 
 ## 1. What this is
