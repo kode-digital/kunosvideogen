@@ -69,30 +69,45 @@ export interface GuardResult {
  * than throwing, so callers can log details before failing the shot.
  */
 export async function checkPiiAllowlist(page: Page, allowlist: readonly string[] = PII_ALLOWLIST): Promise<GuardResult> {
-  const visibleText = await page.evaluate(() => {
-    // Chrome/Firefox's innerText for a <select> returns the text of ALL
-    // its <option>s, not just the one currently shown -- confirmed live
-    // 2026-08-28 on this app's custom-styled dropdowns (Company/Deal/
-    // Supplier pickers), which keep a real, in-flow <select> around for
-    // accessibility/native-control behavior even though only a separate
-    // ".bos-select-custom-trigger" element shows the selected value on
-    // screen. Left as-is, every dropdown populated from shared-tenant
-    // data (other real companies) would fail this guard regardless of
-    // which option is actually selected/visible. Hiding <select>s for
-    // this computation excludes that never-actually-seen option list
-    // while still catching a real violation if the *visible* trigger
-    // text itself shows a non-allowlisted name.
-    const selects = Array.from(document.querySelectorAll("select"));
-    const previousDisplay = selects.map((el) => el.style.display);
-    selects.forEach((el) => {
-      el.style.display = "none";
+  const scanVisibleText = () =>
+    page.evaluate(() => {
+      // Chrome/Firefox's innerText for a <select> returns the text of ALL
+      // its <option>s, not just the one currently shown -- confirmed live
+      // 2026-08-28 on this app's custom-styled dropdowns (Company/Deal/
+      // Supplier pickers), which keep a real, in-flow <select> around for
+      // accessibility/native-control behavior even though only a separate
+      // ".bos-select-custom-trigger" element shows the selected value on
+      // screen. Left as-is, every dropdown populated from shared-tenant
+      // data (other real companies) would fail this guard regardless of
+      // which option is actually selected/visible. Hiding <select>s for
+      // this computation excludes that never-actually-seen option list
+      // while still catching a real violation if the *visible* trigger
+      // text itself shows a non-allowlisted name.
+      const selects = Array.from(document.querySelectorAll("select"));
+      const previousDisplay = selects.map((el) => el.style.display);
+      selects.forEach((el) => {
+        el.style.display = "none";
+      });
+      const text = document.body.innerText;
+      selects.forEach((el, i) => {
+        el.style.display = previousDisplay[i];
+      });
+      return text;
     });
-    const text = document.body.innerText;
-    selects.forEach((el, i) => {
-      el.style.display = previousDisplay[i];
-    });
-    return text;
-  });
+
+  // A page still mid-navigation (a client-side redirect/refresh right
+  // after landing) can make this evaluate() throw -- confirmed live
+  // 2026-08-28 as a "Cannot read properties of null" from document.body
+  // transiently not existing during the transition. One retry after a
+  // short wait rides it out without masking a page that's genuinely
+  // never going to settle.
+  let visibleText: string;
+  try {
+    visibleText = await scanVisibleText();
+  } catch {
+    await page.waitForTimeout(1_000);
+    visibleText = await scanVisibleText();
+  }
 
   const found = [...visibleText.matchAll(ENTITY_NAME_PATTERN)].map((m) => m[1].trim());
   const uniqueFound = [...new Set(found)];
