@@ -6,6 +6,7 @@
   "description": "Automated video production pipeline for Kunos (capture + generate).",
   "scripts": {
     "capture": "tsx capture/run.ts",
+    "capture:demo": "tsx capture/specs/demo_walkthrough.spec.ts",
     "generate": "tsx generate/run.ts",
     "typecheck": "tsc --noEmit"
   },

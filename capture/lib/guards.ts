@@ -69,7 +69,30 @@ export interface GuardResult {
  * than throwing, so callers can log details before failing the shot.
  */
 export async function checkPiiAllowlist(page: Page, allowlist: readonly string[] = PII_ALLOWLIST): Promise<GuardResult> {
-  const visibleText = await page.evaluate(() => document.body.innerText);
+  const visibleText = await page.evaluate(() => {
+    // Chrome/Firefox's innerText for a <select> returns the text of ALL
+    // its <option>s, not just the one currently shown -- confirmed live
+    // 2026-08-28 on this app's custom-styled dropdowns (Company/Deal/
+    // Supplier pickers), which keep a real, in-flow <select> around for
+    // accessibility/native-control behavior even though only a separate
+    // ".bos-select-custom-trigger" element shows the selected value on
+    // screen. Left as-is, every dropdown populated from shared-tenant
+    // data (other real companies) would fail this guard regardless of
+    // which option is actually selected/visible. Hiding <select>s for
+    // this computation excludes that never-actually-seen option list
+    // while still catching a real violation if the *visible* trigger
+    // text itself shows a non-allowlisted name.
+    const selects = Array.from(document.querySelectorAll("select"));
+    const previousDisplay = selects.map((el) => el.style.display);
+    selects.forEach((el) => {
+      el.style.display = "none";
+    });
+    const text = document.body.innerText;
+    selects.forEach((el, i) => {
+      el.style.display = previousDisplay[i];
+    });
+    return text;
+  });
 
   const found = [...visibleText.matchAll(ENTITY_NAME_PATTERN)].map((m) => m[1].trim());
   const uniqueFound = [...new Set(found)];
@@ -77,15 +100,21 @@ export async function checkPiiAllowlist(page: Page, allowlist: readonly string[]
   const normalizedAllowlist = allowlist.map((n) => n.toLowerCase().trim());
   const violations = uniqueFound.filter((name) => {
     const normalized = name.toLowerCase().trim();
-    // Exact match, or the allowlisted name as a trailing, word-boundary-safe
-    // suffix -- the pattern above greedily includes up to 5 preceding
-    // capitalized words, so a real allowlisted name can pick up an
-    // unrelated leading word from surrounding text (e.g. the copyright
-    // footer's "© Copyright Kode Digital Sdn Bhd" matches as "Copyright
-    // Kode Digital Sdn Bhd"). Requiring a space (not just any character)
-    // before the suffix avoids accidentally allowing an unrelated name
-    // that merely ends in the same letters.
-    return !normalizedAllowlist.some((allowed) => normalized === allowed || normalized.endsWith(` ${allowed}`));
+    // Exact match, or the allowlisted name as a trailing suffix -- the
+    // pattern above greedily includes up to 5 preceding capitalized
+    // words, so a real allowlisted name can pick up an unrelated leading
+    // word from surrounding text. Confirmed live 2026-08-28 in two
+    // different forms: "© Copyright Kode Digital Sdn Bhd" (a space
+    // before the real name) and a "Company" field label rendered with
+    // *no* space directly before its value, "CompanyAurora Hardware Sdn
+    // Bhd" (a label+value pair that's visually separated by CSS, not an
+    // actual space or line-break character in the text). A plain
+    // suffix match covers both. The remaining false-negative risk --
+    // some unrelated word that happens to end in the exact same letters
+    // as an allowlisted name with zero separator -- is far less likely
+    // in practice than a real label/heading landing directly next to it,
+    // which is the actual failure mode this guard has hit twice now.
+    return !normalizedAllowlist.some((allowed) => normalized.endsWith(allowed));
   });
 
   return { passed: violations.length === 0, violations, found: uniqueFound };

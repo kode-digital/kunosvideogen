@@ -72,7 +72,12 @@ export async function startRecording(opts: RecorderOptions): Promise<RecordingHa
     [display, "-screen", "0", `${width}x${height}x24`, "-nolisten", "tcp"],
     { stdio: ["pipe", "pipe", "pipe"] },
   );
-  await waitForXDisplay(xvfb, display);
+  try {
+    await waitForXDisplay(xvfb, display);
+  } catch (err) {
+    xvfb.kill("SIGKILL");
+    throw err;
+  }
 
   const ffmpegArgs = [
     "-y",
@@ -98,7 +103,18 @@ export async function startRecording(opts: RecorderOptions): Promise<RecordingHa
   // ffmpeg needs a beat to open the X11 grab source before the caller
   // starts driving the browser, otherwise the first second or two of
   // real action is lost before frames are being written.
-  await waitForFfmpegReady(ffmpeg);
+  try {
+    await waitForFfmpegReady(ffmpeg);
+  } catch (err) {
+    // Without this, a failed ffmpeg spawn (e.g. binary missing, or a
+    // stale Xvfb already holding the display) orphans Xvfb -- confirmed
+    // live 2026-08-28, it kept holding :99's lock file and made every
+    // subsequent startRecording() call fail the same way until killed
+    // by hand.
+    ffmpeg.kill("SIGKILL");
+    xvfb.kill("SIGKILL");
+    throw err;
+  }
 
   const startedAt = Date.now();
   let stopped = false;

@@ -19,9 +19,7 @@
 // never appears on camera) and cached to disk; regenerated automatically
 // if the cached file goes missing.
 
-import { access, mkdir } from "node:fs/promises";
-import { dirname } from "node:path";
-import { launchHeadlessSetupBrowser } from "./browser.ts";
+import { ensureRenderedDocument } from "./syntheticDocument.ts";
 
 const DOCUMENT_HTML = `
 <!doctype html>
@@ -60,27 +58,7 @@ const DEFAULT_PATH = "capture/assets/boq_scan_site_document.png";
 
 /** Render (or reuse a cached render of) the synthetic site-visit document. Returns its path. */
 export async function ensureBoqScanDocument(outPath = DEFAULT_PATH): Promise<string> {
-  if (await exists(outPath)) return outPath;
-
-  await mkdir(dirname(outPath), { recursive: true });
-  const browser = await launchHeadlessSetupBrowser();
-  try {
-    const page = await browser.newPage({ viewport: { width: 1080, height: 900 } });
-    await page.setContent(DOCUMENT_HTML);
-    await page.screenshot({ path: outPath, fullPage: true });
-  } finally {
-    await browser.close();
-  }
-  return outPath;
-}
-
-async function exists(path: string): Promise<boolean> {
-  try {
-    await access(path);
-    return true;
-  } catch {
-    return false;
-  }
+  return ensureRenderedDocument(DOCUMENT_HTML, outPath);
 }
 
 // Allow a one-off `tsx capture/lib/boqScanDocument.ts` to regenerate it directly.
