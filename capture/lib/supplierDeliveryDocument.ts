@@ -11,10 +11,21 @@
 // inventing a second reserved entity -- one name to keep on
 // guards.ts's PII_ALLOWLIST is simpler than two, and the guard doesn't
 // distinguish "customer" from "supplier".
+//
+// Unlike boqScanDocument.ts, this one is deliberately NOT cached/reused
+// across runs: confirmed live 2026-08-28, Supplier Documents has its own
+// tenant-wide duplicate-file check (by content, not by DO number alone --
+// re-rendering with just a different DO number wasn't enough on its own
+// to confirm, so the DO number *and* a fresh render each call are both
+// used) that rejected a second upload of the same bytes with "This exact
+// file has already been uploaded (document #N)". Each call renders a
+// fresh file with a unique DO number to a unique path.
 
+import { join } from "node:path";
 import { ensureRenderedDocument } from "./syntheticDocument.ts";
 
-const DOCUMENT_HTML = `
+function documentHtml(doNumber: string): string {
+  return `
 <!doctype html>
 <html><head><meta charset="utf-8"><style>
   body { font-family: Arial, Helvetica, sans-serif; width: 1000px; padding: 40px; background: white; color: #111; }
@@ -29,7 +40,7 @@ const DOCUMENT_HTML = `
 <body>
   <h1>Delivery Order</h1>
   <div class="sub">Aurora Hardware Sdn Bhd — Supplier</div>
-  <div class="meta">DO No: DO-2026-4471 &nbsp;|&nbsp; Date: 25 Aug 2026 &nbsp;|&nbsp; Deliver To: Warehouse 2, Prai</div>
+  <div class="meta">DO No: ${doNumber} &nbsp;|&nbsp; Date: 25 Aug 2026 &nbsp;|&nbsp; Deliver To: Warehouse 2, Prai</div>
   <table>
     <tr><th>Item</th><th>Description</th><th>Qty</th><th>Unit Price (RM)</th></tr>
     <tr><td>VD-A4-80</td><td>A4 Copy Paper 80gsm (Ream)</td><td>50</td><td>12.50</td></tr>
@@ -39,18 +50,19 @@ const DOCUMENT_HTML = `
   <div class="totals">Total: RM 925.00</div>
 </body></html>
 `;
+}
 
 /** SKUs on the rendered delivery order -- for outcome assertions, not exact-text matching. */
 export const EXPECTED_LINE_ITEM_SKUS = ["VD-A4-80", "VD-STPL-01", "VD-FLD-A4"] as const;
 
-const DEFAULT_PATH = "capture/assets/supplier_delivery_order.png";
-
-/** Render (or reuse a cached render of) the synthetic delivery-order document. Returns its path. */
-export async function ensureSupplierDeliveryDocument(outPath = DEFAULT_PATH): Promise<string> {
-  return ensureRenderedDocument(DOCUMENT_HTML, outPath);
+/** Render a fresh, uniquely-numbered delivery-order document. Returns its path. */
+export async function ensureSupplierDeliveryDocument(): Promise<string> {
+  const doNumber = `DO-${Date.now()}`;
+  const outPath = join("out", "capture", "assets", `supplier_delivery_order_${Date.now()}.png`);
+  return ensureRenderedDocument(documentHtml(doNumber), outPath);
 }
 
-// Allow a one-off `tsx capture/lib/supplierDeliveryDocument.ts` to regenerate it directly.
+// Allow a one-off `tsx capture/lib/supplierDeliveryDocument.ts` to render one directly.
 if (import.meta.url === `file://${process.argv[1]}`) {
   ensureSupplierDeliveryDocument().then((p) => console.log(`Wrote ${p}`));
 }
