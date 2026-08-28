@@ -49,9 +49,24 @@ export async function moveTo(page: Page, x: number, y: number, opts: MoveOptions
   lastKnownPosition = { x, y };
 }
 
-/** Move to the center of an element's bounding box. Throws if the element has no box (not visible/attached). */
+/**
+ * Move to the center of an element's bounding box. Throws if the element
+ * has no box (not visible/attached).
+ *
+ * Scrolls the element into view first -- boundingBox() returns
+ * viewport-relative coordinates, so an element below the fold (common on
+ * a long form) reports a y past the viewport height. page.mouse.move()
+ * doesn't clamp or auto-scroll for that; it just moves the OS cursor to
+ * a point beyond what's rendered, so the eventual click lands on nothing
+ * and silently no-ops (confirmed live 2026-08-28: a real form submit
+ * button below the fold produced no error and no submission). A real
+ * cursor can't reach an off-screen element either without scrolling
+ * first, so this also happens to match human behavior.
+ */
 export async function moveToElement(page: Page, selector: string, opts: MoveOptions = {}): Promise<void> {
-  const box = await page.locator(selector).boundingBox();
+  const locator = page.locator(selector);
+  await locator.scrollIntoViewIfNeeded();
+  const box = await locator.boundingBox();
   if (!box) throw new Error(`moveToElement: no bounding box for selector "${selector}" -- is it visible?`);
   await moveTo(page, box.x + box.width / 2, box.y + box.height / 2, opts);
 }
