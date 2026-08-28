@@ -44,7 +44,7 @@
         "boqs_index": "/crm/boqs",
         "boqs_create": "/crm/boqs/create",
         "boq_scan_upload": "/crm/boqs/{boq}/scan (GET = BoqScanController@create, POST = @store) -- confirmed live 2026-08-28",
-        "boq_scan_review": "/crm/boqs/{boq}/scans/{scan}/review (BoqScanController@review) -- BLOCKED, see boq_scan_ocr_flow below",
+        "boq_scan_review": "/crm/boqs/{boq}/scans/{scan}/review (BoqScanController@review) -- reachable as of 2026-08-28 (see boq_scan_ocr_flow.review_page below for its history of intermittently 404ing)",
         "quotations_index": "/crm/quotations",
         "quotations_create": "/crm/quotations/create",
         "quotation_pdf": "/crm/quotations/{quotation}/pdf",
@@ -67,11 +67,11 @@
         "buttons": "#boqScanTakePhotoBtn 'Take Photo', #boqScanUploadImageBtn 'Upload Image', #boqScanUploadPdfBtn 'Upload PDF', #boqScanSubmit 'Start Scanning'",
         "unfinished_scan_state": "If a scan is already in progress/unreviewed for this BOQ, the page instead shows a 'Unfinished BOQ scan' panel with a 'Resume Review' link (href to the review route below), '#boqScanDiscard' button (data-discard-url to PUT/DELETE .../scans/{scan}), and '#boqScanStartNew' button. A fresh BOQ per capture attempt avoids this state."
       },
-      "review_page_BLOCKED": {
+      "review_page": {
         "route": "GET /crm/boqs/{boq}/scans/{scan}/review",
-        "status": "confirmed broken 2026-08-28: returns Laravel's default 404 with NO route registered at all (17 consecutive polls over 105s, all NotFoundHttpException). GET on the sibling /crm/boqs/{boq}/scans/{scan} (no /review) returns 405 with Allow: PUT, DELETE -- so the update/discard routes exist but no GET/show route exists for an individual scan.",
-        "impact": "The app's own 'Resume Review' link is dead. The OCR upload+submit step itself works (POST /crm/boqs/{boq}/scan succeeds, creates a real CrmSiteVisitDocument, redirects to the review URL) but the review screen -- and therefore confirm/import into a quotation -- cannot currently be reached or filmed.",
-        "not_yet_known": "Real selectors for the line-item review/edit UI, the confirm/import action, and the resulting quotation route (QuotationController@fromBoq) -- blocked on this route being fixed."
+        "status_history": "Found completely unreachable 2026-08-28 09:05-09:11 UTC: returned Laravel's default 404 with NO route registered at all (17 consecutive polls over 105s, all NotFoundHttpException). GET on the sibling /crm/boqs/{boq}/scans/{scan} (no /review) returned 405 with Allow: PUT, DELETE -- so the update/discard routes existed but no GET/show route did. Re-tested ~20 minutes later (09:38 UTC) inside the actual capture-spec run and returned 200 both times reached. This tenant is evidently an actively-deployed staging environment (also saw intermittent /login and /crm/boqs/{id} 500s the same session) -- treat 'unreachable' findings here as time-stamped, not permanent.",
+        "confirmed_working_2026-08-28": "capture/specs/boq_scan_to_quote.spec.ts ran end to end through this route successfully (library/ui/boq_scan_to_quote/2026-08-28.mp4).",
+        "not_yet_known": "Real selectors for the line-item review/edit UI, the confirm/import action, and the resulting quotation route (QuotationController@fromBoq) -- the capture spec currently only asserts the review page loads (HTTP 200), it doesn't yet film or assert on what's inside it."
       }
     },
     {
