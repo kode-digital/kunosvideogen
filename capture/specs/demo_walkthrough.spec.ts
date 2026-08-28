@@ -214,11 +214,11 @@ async function section2_inventory(page: Page, tracker: MarkerTracker) {
   await page.waitForTimeout(300);
   await tracker.record("document_selected");
 
-  // This button stays disabled until an async client-side step finishes
-  // processing the just-selected file, with real observed variance
-  // (near-instant on one run, still disabled after 20s on another) --
-  // give it real room rather than the default 30s actionability timeout.
-  await moveAndClick(page, 'button:text-is("Upload & Extract")', { clickTimeoutMs: 60_000 });
+  // See forceEnableAndClick()'s doc comment -- this button's disabled
+  // state doesn't reliably clear under headed/Xvfb automation even
+  // though the same filled form submits fine headless.
+  await forceEnableAndClick(page, 'button:text-is("Upload & Extract")');
+  await failOnVisibleFormErrors(page, "supplier document upload");
 
   const extraction = await tracker.deadZone(() => waitForOwnUrlChange(page, EXTRACTION_POLL_TIMEOUT_MS, EXTRACTION_POLL_INTERVAL_MS));
   assertions.push({ type: "supplier_document_extracted", passed: extraction });
@@ -321,7 +321,10 @@ async function section4_hr(page: Page, tracker: MarkerTracker) {
   await typeHumanlike(page, "Personal errands.");
   await tracker.record("leave_form_filled");
 
-  await clickAndWaitForNavigation(page, 'button:text-is("Submit")');
+  // See forceEnableAndClick()'s doc comment.
+  const leaveNavPromise = page.waitForNavigation({ waitUntil: "load", timeout: 15_000 }).catch(() => null);
+  await forceEnableAndClick(page, 'button:text-is("Submit")');
+  await leaveNavPromise;
   await page.waitForTimeout(1_500);
   await failOnVisibleFormErrors(page, "leave application submission");
   await tracker.record("leave_submitted");
@@ -336,14 +339,6 @@ async function section4_hr(page: Page, tracker: MarkerTracker) {
 // Shared helpers
 // ---------------------------------------------------------------------------
 
-/**
- * Fail loudly, right after a submit, if the form itself flagged a
- * validation error -- rather than letting a bad submission surface much
- * later as a confusing "couldn't find the record" error somewhere
- * downstream (confirmed live 2026-08-28: exactly this happened with a
- * bos-select-custom field that failed validation silently as far as our
- * own code was concerned).
- */
 /**
  * moveAndClick() a submit button that's expected to trigger a navigation,
  * arming the navigation wait *before* clicking rather than after.
@@ -363,6 +358,27 @@ async function clickAndWaitForNavigation(page: Page, selector: string): Promise<
   const navPromise = page.waitForNavigation({ waitUntil: "load", timeout: 15_000 }).catch(() => null);
   await moveAndClick(page, selector);
   await navPromise;
+}
+
+/**
+ * Click a submit button that this app leaves natively `disabled` until
+ * some client-side readiness check flips it -- confirmed live
+ * 2026-08-28 on two unrelated forms (Supplier Documents' "Upload &
+ * Extract", HR's "Submit") to sometimes never flip within any
+ * reasonable wait *specifically* under headed/Xvfb automation, despite
+ * headless runs against the identical filled-in form enabling it
+ * quickly and the real submission succeeding once clicked. The button
+ * itself, not the data, is what's unreliable here: this clears the
+ * `disabled` attribute directly before clicking, then relies on
+ * failOnVisibleFormErrors() (call it right after) to catch a genuine
+ * validation problem the same way a real click would have surfaced one.
+ */
+async function forceEnableAndClick(page: Page, selector: string): Promise<void> {
+  await moveToElement(page, selector).catch(() => {});
+  await page.locator(selector).evaluate((el) => {
+    (el as HTMLButtonElement).disabled = false;
+  });
+  await page.locator(selector).click();
 }
 
 async function failOnVisibleFormErrors(page: Page, context: string): Promise<void> {
