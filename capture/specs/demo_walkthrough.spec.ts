@@ -214,14 +214,17 @@ async function section2_inventory(page: Page, tracker: MarkerTracker) {
   await page.waitForTimeout(300);
   await tracker.record("document_selected");
 
-  // See forceEnableAndClick()'s doc comment -- this button's disabled
-  // state doesn't reliably clear under headed/Xvfb automation even
-  // though the same filled form submits fine headless.
+  // forceEnableAndClick() kept as a safety net (see its doc comment) --
+  // the actual root cause of this button seeming stuck was a tenant-wide
+  // duplicate-file check rejecting a re-upload of the same bytes, fixed
+  // by making ensureSupplierDeliveryDocument() render a fresh file every
+  // call rather than reusing a cached one.
   await forceEnableAndClick(page, 'button:text-is("Upload & Extract")');
   await failOnVisibleFormErrors(page, "supplier document upload");
-  console.log(`[inventory] after clicking Upload & Extract, url is ${page.url()}`);
 
-  const extraction = await tracker.deadZone(() => waitForOwnUrlChange(page, EXTRACTION_POLL_TIMEOUT_MS, EXTRACTION_POLL_INTERVAL_MS));
+  const extraction = await tracker.deadZone(() =>
+    waitForUrlMatching(page, /\/supplier-documents\/\d+\/review/, EXTRACTION_POLL_TIMEOUT_MS, EXTRACTION_POLL_INTERVAL_MS),
+  );
   assertions.push({ type: "supplier_document_extracted", passed: extraction });
   if (!extraction) console.log(`[inventory] extraction poll timed out, url still ${page.url()}`);
   if (extraction) {
@@ -423,15 +426,26 @@ async function selectCustomOption(page: Page, trigger: Locator, optionText: stri
   await page.locator(`#${menuId}`).getByText(optionText, { exact: true }).click();
 }
 
-/** Poll until the page's URL changes from what it was when this was called, or timeout. */
-async function waitForOwnUrlChange(page: Page, timeoutMs: number, intervalMs: number): Promise<boolean> {
-  const startUrl = page.url();
+/**
+ * Poll until the page's URL matches `pattern`, or timeout.
+ *
+ * Deliberately not "wait until the URL differs from X" -- confirmed live
+ * 2026-08-28, when extraction finished fast (dedup fixed, no longer
+ * blocked on a stale duplicate), the navigation to .../review had
+ * already happened by the time this function was even called, so
+ * "differs from whatever page.url() is *now*" was already true-turned-
+ * false: capturing "now" as the baseline after the target state was
+ * already reached made the poll wait for a *second* change that was
+ * never coming. Matching an explicit target pattern has no such
+ * ordering dependency.
+ */
+async function waitForUrlMatching(page: Page, pattern: RegExp, timeoutMs: number, intervalMs: number): Promise<boolean> {
   const deadline = Date.now() + timeoutMs;
   while (Date.now() < deadline) {
-    if (page.url() !== startUrl) return true;
+    if (pattern.test(page.url())) return true;
     await page.waitForTimeout(intervalMs);
   }
-  return false;
+  return pattern.test(page.url());
 }
 
 /**
