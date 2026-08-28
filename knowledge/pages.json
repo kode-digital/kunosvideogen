@@ -38,13 +38,40 @@
       "matches_screenshot": "CRM Dashboard.png",
       "related_routes": {
         "companies": "/crm/companies",
+        "companies_create": "/crm/companies/create",
         "contacts": "/crm/contacts",
+        "deals_create": "/crm/deals/create",
+        "boqs_index": "/crm/boqs",
+        "boqs_create": "/crm/boqs/create",
+        "boq_scan_upload": "/crm/boqs/{boq}/scan (GET = BoqScanController@create, POST = @store) -- confirmed live 2026-08-28",
+        "boq_scan_review": "/crm/boqs/{boq}/scans/{scan}/review (BoqScanController@review) -- BLOCKED, see boq_scan_ocr_flow below",
         "quotations_index": "/crm/quotations",
         "quotations_create": "/crm/quotations/create",
         "quotation_pdf": "/crm/quotations/{quotation}/pdf",
-        "boq_scan_upload": "Modules\\CRM\\App\\Http\\Controllers\\BoqScanController@create",
-        "boq_scan_review": "Modules\\CRM\\App\\Http\\Controllers\\BoqScanController@review",
         "invoices": "InvoiceController"
+      }
+    },
+    {
+      "id": "boq_scan_ocr_flow",
+      "note": "Confirmed live against the real demo 2026-08-28 while building capture/specs/boq_scan_to_quote.spec.ts. Real selectors/fields captured here so future sessions don't have to re-derive them.",
+      "setup_prerequisites": {
+        "company": "POST /crm/companies -- required field: name. Reused across runs by searching GET /crm/companies?search=<name> and matching an exact-text <a> in the results.",
+        "deal": "POST /crm/deals -- required fields: company_id (select), title, pipeline_id (select, id=dealPipelineSelect), stage_id (select, id=dealStageIdSelect). Check #dealBoqEnabledInput so the deal supports a BOQ. Submit button text 'Save Deal'.",
+        "boq": "POST /crm/boqs -- required fields: company_id (select), opportunity_id (select, client-side filtered by company_id -- wait ~500ms after selecting company before the opportunity list updates), title. Submit button text 'Save Draft'. Must stay in status draft/in_progress/rejected with opportunity_id set for the scan route to be reachable (BoqScanController::authorizeScan)."
+      },
+      "scan_page": {
+        "route": "GET /crm/boqs/{boq}/scan",
+        "gating": "422 'boq_scan_requires_deal' if opportunity_id is null; 422 'boq_not_editable_for_scan' if status isn't draft/in_progress/rejected or the user lacks crm.boq.edit; requires feature flag site_visit_document_ocr enabled + permission crm.site_visit.document.ocr (both true on this tenant as of 2026-08-28).",
+        "upload_panel_id": "#boqScanUploadPanel",
+        "file_inputs": "#boqScanTakePhotoInput (accept image/*), #boqScanUploadImageInput (accept image/jpeg,png,webp,heic,heif), #boqScanUploadPdfInput (accept application/pdf) -- all class=d-none, set via setInputFiles() directly rather than clicking the visible button (clicking triggers a native OS file dialog)",
+        "buttons": "#boqScanTakePhotoBtn 'Take Photo', #boqScanUploadImageBtn 'Upload Image', #boqScanUploadPdfBtn 'Upload PDF', #boqScanSubmit 'Start Scanning'",
+        "unfinished_scan_state": "If a scan is already in progress/unreviewed for this BOQ, the page instead shows a 'Unfinished BOQ scan' panel with a 'Resume Review' link (href to the review route below), '#boqScanDiscard' button (data-discard-url to PUT/DELETE .../scans/{scan}), and '#boqScanStartNew' button. A fresh BOQ per capture attempt avoids this state."
+      },
+      "review_page_BLOCKED": {
+        "route": "GET /crm/boqs/{boq}/scans/{scan}/review",
+        "status": "confirmed broken 2026-08-28: returns Laravel's default 404 with NO route registered at all (17 consecutive polls over 105s, all NotFoundHttpException). GET on the sibling /crm/boqs/{boq}/scans/{scan} (no /review) returns 405 with Allow: PUT, DELETE -- so the update/discard routes exist but no GET/show route exists for an individual scan.",
+        "impact": "The app's own 'Resume Review' link is dead. The OCR upload+submit step itself works (POST /crm/boqs/{boq}/scan succeeds, creates a real CrmSiteVisitDocument, redirects to the review URL) but the review screen -- and therefore confirm/import into a quotation -- cannot currently be reached or filmed.",
+        "not_yet_known": "Real selectors for the line-item review/edit UI, the confirm/import action, and the resulting quotation route (QuotationController@fromBoq) -- blocked on this route being fixed."
       }
     },
     {

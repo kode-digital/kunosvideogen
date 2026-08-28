@@ -46,3 +46,22 @@ export async function launchCaptureBrowser(opts: LaunchCaptureBrowserOptions): P
     env: { ...process.env, DISPLAY: opts.display },
   });
 }
+
+/**
+ * Headless Chromium for the *setup* half of an interaction-flow capture
+ * (SPEC.md §6.3: "create records at the start of the run under a reserved
+ * namespace"), not for filming. No Xvfb/display needed — this never
+ * appears in the recorded video. Carries the same TLS 1.2 workaround as
+ * launchCaptureBrowser() above, since it hits the same egress gateway.
+ */
+export async function launchHeadlessSetupBrowser(): Promise<Browser> {
+  return chromium.launch({
+    headless: true,
+    executablePath: PLAYWRIGHT_CHROMIUM_PATH,
+    args: [
+      "--no-sandbox",
+      "--ssl-version-max=tls1.2", // see file header — required in this sandbox's network environment
+      ...(process.env.HTTPS_PROXY ? [`--proxy-server=${process.env.HTTPS_PROXY}`] : []),
+    ],
+  });
+}

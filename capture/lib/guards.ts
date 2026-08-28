@@ -30,7 +30,15 @@ import type { Page } from "playwright";
  * fixtures, never to "fix" a guard failure by allowlisting whatever real
  * name happened to show up.
  */
-export const PII_ALLOWLIST: readonly string[] = ["Aurora Hardware Sdn Bhd"];
+export const PII_ALLOWLIST: readonly string[] = [
+  "Aurora Hardware Sdn Bhd",
+  // The platform vendor's own name, not a customer/prospect -- appears in
+  // the "© Copyright Kode Digital Sdn Bhd ..." footer on every single
+  // page (confirmed live 2026-08-28). It's persistent branding, not a
+  // shared-tenant data leak, so it belongs on the allowlist rather than
+  // failing every capture.
+  "Kode Digital Sdn Bhd",
+];
 
 // Matches a run of capitalized words immediately followed by a common
 // legal-entity suffix, e.g. "Bright Star Trading Sdn Bhd", "Acme Pte Ltd".
