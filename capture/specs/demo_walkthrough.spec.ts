@@ -169,8 +169,7 @@ async function section2_inventory(page: Page, tracker: MarkerTracker) {
   await page.locator('input[name="barcode"]').fill(barcode);
   await tracker.record("item_form_filled");
 
-  await moveAndClick(page, 'button:text-is("Save")');
-  await page.waitForLoadState("load").catch(() => {});
+  await clickAndWaitForNavigation(page, 'button:text-is("Save")');
   await page.waitForTimeout(1_000);
   await failOnVisibleFormErrors(page, "item creation");
 
@@ -240,8 +239,7 @@ async function section3_crm(page: Page, tracker: MarkerTracker) {
   await page.locator('input[name="valid_until"]').fill(isoDate(validUntil));
   await tracker.record("quotation_form_filled");
 
-  await moveAndClick(page, 'button:text-is("Save Draft")');
-  await page.waitForLoadState("load").catch(() => {});
+  await clickAndWaitForNavigation(page, 'button:text-is("Save Draft")');
   await page.waitForTimeout(1_000);
   await failOnVisibleFormErrors(page, "quotation creation");
   await tracker.record("quotation_created");
@@ -306,8 +304,7 @@ async function section4_hr(page: Page, tracker: MarkerTracker) {
   await typeHumanlike(page, "Personal errands.");
   await tracker.record("leave_form_filled");
 
-  await moveAndClick(page, 'button:text-is("Submit")');
-  await page.waitForLoadState("load").catch(() => {});
+  await clickAndWaitForNavigation(page, 'button:text-is("Submit")');
   await page.waitForTimeout(1_500);
   await failOnVisibleFormErrors(page, "leave application submission");
   await tracker.record("leave_submitted");
@@ -330,6 +327,27 @@ async function section4_hr(page: Page, tracker: MarkerTracker) {
  * bos-select-custom field that failed validation silently as far as our
  * own code was concerned).
  */
+/**
+ * moveAndClick() a submit button that's expected to trigger a navigation,
+ * arming the navigation wait *before* clicking rather than after.
+ *
+ * These forms don't navigate synchronously on click -- there's an async
+ * pre-processing step (validation/fetch) before the real redirect
+ * happens, confirmed live 2026-08-28 (immediately after the click,
+ * page.url() was still the create page; the record existed moments
+ * later). waitForLoadState() called *after* the click can resolve
+ * immediately against the pre-click page (no navigation in flight yet)
+ * instead of waiting for the one that hasn't started, which then races
+ * page.evaluate() calls against the real navigation when it does happen.
+ * Arming waitForNavigation() first avoids the race regardless of the
+ * delay.
+ */
+async function clickAndWaitForNavigation(page: Page, selector: string): Promise<void> {
+  const navPromise = page.waitForNavigation({ waitUntil: "load", timeout: 15_000 }).catch(() => null);
+  await moveAndClick(page, selector);
+  await navPromise;
+}
+
 async function failOnVisibleFormErrors(page: Page, context: string): Promise<void> {
   const errors = await page.evaluate(() =>
     Array.from(document.querySelectorAll(".is-invalid, .invalid-feedback, .bos-select--error"))
