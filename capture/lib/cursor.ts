@@ -74,12 +74,26 @@ export async function moveToElement(page: Page, selector: string, opts: MoveOpti
 /**
  * Move to an element and click it, with a settle pause in between so the
  * click doesn't visibly happen mid-travel.
+ *
+ * The actual click goes through the element's own Locator.click() rather
+ * than a raw page.mouse.click() at the last-known coordinates. Confirmed
+ * live 2026-08-28: a raw coordinate click on a still-disabled button
+ * (disabled until an async client-side step finishes processing a
+ * just-selected file) silently no-ops, whereas Locator.click()'s normal
+ * actionability wait holds until the element is genuinely clickable.
+ * The eased travel beforehand still gives the visible on-screen cursor
+ * movement -- only the final click itself changes, from an unconditional
+ * click at a point to one that waits for and verifies the target.
  */
-export async function moveAndClick(page: Page, selector: string, opts: MoveOptions = {}): Promise<void> {
+export async function moveAndClick(
+  page: Page,
+  selector: string,
+  opts: MoveOptions & { clickTimeoutMs?: number } = {},
+): Promise<void> {
   const { settleMs } = { ...DEFAULTS, ...opts };
   await moveToElement(page, selector, opts);
   await page.waitForTimeout(settleMs);
-  await page.mouse.click(lastKnownPosition.x, lastKnownPosition.y);
+  await page.locator(selector).click({ timeout: opts.clickTimeoutMs });
 }
 
 export interface TypeOptions {

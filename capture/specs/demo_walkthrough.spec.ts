@@ -201,7 +201,11 @@ async function section2_inventory(page: Page, tracker: MarkerTracker) {
   await page.waitForTimeout(300);
   await tracker.record("document_selected");
 
-  await moveAndClick(page, 'button:text-is("Upload & Extract")');
+  // This button stays disabled until an async client-side step finishes
+  // processing the just-selected file, with real observed variance
+  // (near-instant on one run, still disabled after 20s on another) --
+  // give it real room rather than the default 30s actionability timeout.
+  await moveAndClick(page, 'button:text-is("Upload & Extract")', { clickTimeoutMs: 60_000 });
 
   const extraction = await tracker.deadZone(() => waitForOwnUrlChange(page, EXTRACTION_POLL_TIMEOUT_MS, EXTRACTION_POLL_INTERVAL_MS));
   assertions.push({ type: "supplier_document_extracted", passed: extraction });
