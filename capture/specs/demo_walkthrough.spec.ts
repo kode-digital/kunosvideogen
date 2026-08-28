@@ -170,6 +170,7 @@ async function section2_inventory(page: Page, tracker: MarkerTracker) {
   await tracker.record("item_form_filled");
 
   await moveAndClick(page, 'button:text-is("Save")');
+  await page.waitForLoadState("load").catch(() => {});
   await page.waitForTimeout(1_000);
   await failOnVisibleFormErrors(page, "item creation");
 
@@ -240,6 +241,7 @@ async function section3_crm(page: Page, tracker: MarkerTracker) {
   await tracker.record("quotation_form_filled");
 
   await moveAndClick(page, 'button:text-is("Save Draft")');
+  await page.waitForLoadState("load").catch(() => {});
   await page.waitForTimeout(1_000);
   await failOnVisibleFormErrors(page, "quotation creation");
   await tracker.record("quotation_created");
@@ -305,6 +307,7 @@ async function section4_hr(page: Page, tracker: MarkerTracker) {
   await tracker.record("leave_form_filled");
 
   await moveAndClick(page, 'button:text-is("Submit")');
+  await page.waitForLoadState("load").catch(() => {});
   await page.waitForTimeout(1_500);
   await failOnVisibleFormErrors(page, "leave application submission");
   await tracker.record("leave_submitted");
