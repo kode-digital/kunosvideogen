@@ -49,9 +49,29 @@ export async function moveTo(page: Page, x: number, y: number, opts: MoveOptions
   lastKnownPosition = { x, y };
 }
 
-/** Move to the center of an element's bounding box. Throws if the element has no box (not visible/attached). */
+/**
+ * Move to the center of an element's bounding box. Takes the first match
+ * when a selector resolves to more than one element -- capture scripts
+ * describe targets loosely ("the submit button"), and real pages often
+ * have more than one element matching a broad selector.
+ *
+ * Scrolls the element into view first (best-effort, short timeout --
+ * this is purely for a nicer-looking cursor animation, so a slow/odd
+ * element here should never block the actual interaction; moveAndClick's
+ * real click does its own robust scroll+wait separately). Skipping the
+ * scroll silently produces coordinates outside the visible canvas on any
+ * page taller than the viewport, since boundingBox() returns coordinates
+ * in the current viewport regardless of whether the element is actually
+ * scrolled into visible range -- a real bug this shot's capture spec hit,
+ * where a below-the-fold submit button never actually got clicked, with
+ * no error at all (moveTo() happily "arrived" off-screen).
+ *
+ * Throws if no element has a box (not visible/attached).
+ */
 export async function moveToElement(page: Page, selector: string, opts: MoveOptions = {}): Promise<void> {
-  const box = await page.locator(selector).boundingBox();
+  const target = page.locator(selector).first();
+  await target.scrollIntoViewIfNeeded({ timeout: 5_000 }).catch(() => {});
+  const box = await target.boundingBox();
   if (!box) throw new Error(`moveToElement: no bounding box for selector "${selector}" -- is it visible?`);
   await moveTo(page, box.x + box.width / 2, box.y + box.height / 2, opts);
 }
@@ -59,12 +79,25 @@ export async function moveToElement(page: Page, selector: string, opts: MoveOpti
 /**
  * Move to an element and click it, with a settle pause in between so the
  * click doesn't visibly happen mid-travel.
+ *
+ * The move is a best-effort visual animation only -- the actual click
+ * goes through the locator's own .click(), which re-resolves the
+ * element's position, waits for actionability, and scrolls it into view
+ * itself. Clicking at the raw coordinates computed for the animation
+ * (page.mouse.click(x, y)) is not reliable: anything shifts between
+ * computing that position and clicking it -- a reflow, a slow scroll,
+ * a fixed/sticky header -- and the click silently lands on nothing, with
+ * no error. That exact failure mode cost real debugging time on this
+ * shot's capture spec before switching to this approach.
  */
 export async function moveAndClick(page: Page, selector: string, opts: MoveOptions = {}): Promise<void> {
   const { settleMs } = { ...DEFAULTS, ...opts };
-  await moveToElement(page, selector, opts);
+  await moveToElement(page, selector, opts).catch(() => {
+    // The animation is cosmetic; if it fails for any reason, fall through
+    // to the real click below rather than losing the whole action over it.
+  });
   await page.waitForTimeout(settleMs);
-  await page.mouse.click(lastKnownPosition.x, lastKnownPosition.y);
+  await page.locator(selector).first().click();
 }
 
 export interface TypeOptions {

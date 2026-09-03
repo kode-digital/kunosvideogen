@@ -10,10 +10,10 @@
     },
     {
       "claim": "cut processing time by over 80%",
-      "status": "needs_review",
-      "severity": "medium — no documented basis found, but a real candidate feature exists",
-      "evidence": "No benchmark, timing log, or documented baseline found in code. The closest real feature is the BOQ document-scan OCR flow (Modules/CRM/App/Services/SiteVisitDocumentOcrService.php, Google Vision-based) which does plausibly speed up manual line-item entry from site documents.",
-      "recommendation": "Do not use the 80% figure without the product owner producing a measured before/after comparison. If kept, it should be scoped explicitly to 'BOQ data entry from scanned documents,' not processing in general."
+      "status": "needs_review — new evidence narrows this significantly",
+      "severity": "medium — no documented basis found, and the candidate feature is narrower than assumed",
+      "evidence": "No benchmark, timing log, or documented baseline found in code. The BOQ document-scan OCR flow (Modules/CRM/App/Services/SiteVisitDocumentOcrService.php, Google Vision-based) was the assumed candidate, but live capture testing (2026-09-03) found it is not a generic 'scan any site document' feature: BoqScanController@store defaults to a single hard-coded extraction template, CrmDocumentTemplate code='MAMMO_PREINSTALL_BOQ' (Modules/CRM/database/seeders/MammoPreInstallationBoqTemplateSeeder.php), and it is the only template seeded anywhere in the codebase. That template's layout_definition is a fixed normalised-coordinate column map (item/description/unit/quantity/rate/amount bands, expected_aspect_ratio 0.7071) built from one specific real pre-printed physical form used for mammography equipment pre-installation work — a different customer vertical (medical equipment installers) from Kunos's stated positioning (hardware stores, retail, warehousing). A generic warehouse/hardware-style document uploaded against this template extracted 0 rows in a real test run.",
+      "recommendation": "Do not use the 80% figure, and do not narrate the BOQ scan feature as general-purpose document-to-quote OCR for a hardware-store audience — as implemented today it only works for the one Mammo pre-installation form layout. Either: (a) the product owner confirms other templates exist that this review didn't see (e.g. added via an admin UI rather than a seeder) and points to one relevant to hardware/warehousing, or (b) V1's boq_scan_to_quote shot needs to use the real Mammo-form scenario and narrate it honestly (a different customer story than 'Aurora Hardware'), or (c) the shot target changes again to something that fits the hardware/warehouse positioning without this template lock-in."
     },
     {
       "claim": "literally three seconds for the Kunos AI quote",

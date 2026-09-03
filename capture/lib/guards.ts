@@ -30,12 +30,35 @@ import type { Page } from "playwright";
  * fixtures, never to "fix" a guard failure by allowlisting whatever real
  * name happened to show up.
  */
-export const PII_ALLOWLIST: readonly string[] = ["Aurora Hardware Sdn Bhd"];
+export const PII_ALLOWLIST: readonly string[] = [
+  "Aurora Hardware Sdn Bhd",
+  // The platform vendor's own name, appearing legitimately in footers/
+  // branding (e.g. "Copyright Kode Digital Sdn Bhd") -- this is not a
+  // customer/prospect name, so it belongs on the allowlist permanently.
+  "Kode Digital Sdn Bhd",
+];
 
 // Matches a run of capitalized words immediately followed by a common
 // legal-entity suffix, e.g. "Bright Star Trading Sdn Bhd", "Acme Pte Ltd".
+// Word-joining whitespace is restricted to spaces/tabs (not \s, which
+// includes newlines) -- innerText renders each UI label/field on its own
+// line, and allowing newlines let the match sweep across unrelated
+// adjacent lines (a user's name, a "Company" field label, ...) into what
+// looked like one long fake entity name. Real entity names are one line.
 const ENTITY_NAME_PATTERN =
-  /\b([A-Z][A-Za-z0-9&'.-]*(?:\s+[A-Z][A-Za-z0-9&'.-]*){0,5}\s+(?:Sdn\.?\s?Bhd\.?|Bhd\.?|Pte\.?\s?Ltd\.?|Ltd\.?|Inc\.?|LLC))\b/g;
+  /\b([A-Z][A-Za-z0-9&'.-]*(?:[ \t]+[A-Z][A-Za-z0-9&'.-]*){0,5}[ \t]+(?:Sdn\.?\s?Bhd\.?|Bhd\.?|Pte\.?\s?Ltd\.?|Ltd\.?|Inc\.?|LLC))\b/g;
+
+// The name-matching regex is greedy about capitalized words, so generic
+// capitalized boilerplate immediately before a real name (page furniture,
+// not part of any entity name) gets swept into the match -- e.g.
+// "Copyright Kode Digital Sdn Bhd". Strip known leading boilerplate
+// words before comparing against the allowlist, rather than allowlisting
+// every noisy variant a match could produce.
+const LEADING_BOILERPLATE = /^(Copyright|All Rights Reserved|Powered By|Presented By)\s+/i;
+
+function stripLeadingBoilerplate(name: string): string {
+  return name.replace(LEADING_BOILERPLATE, "").trim();
+}
 
 export interface GuardResult {
   passed: boolean;
@@ -53,7 +76,7 @@ export interface GuardResult {
 export async function checkPiiAllowlist(page: Page, allowlist: readonly string[] = PII_ALLOWLIST): Promise<GuardResult> {
   const visibleText = await page.evaluate(() => document.body.innerText);
 
-  const found = [...visibleText.matchAll(ENTITY_NAME_PATTERN)].map((m) => m[1].trim());
+  const found = [...visibleText.matchAll(ENTITY_NAME_PATTERN)].map((m) => stripLeadingBoilerplate(m[1].trim()));
   const uniqueFound = [...new Set(found)];
 
   const normalizedAllowlist = new Set(allowlist.map((n) => n.toLowerCase().trim()));
